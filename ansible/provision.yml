@@ -38,3 +38,6 @@
         TF_VAR_machine_type: "{{ dialog_machine_type }}"
         TF_VAR_vm_name: "{{ dialog_vm_name }}"
         TF_VAR_credentials_file: "{{ dialog_credentials_file }}"
+- name: Notify ManageIQ playbook finished
+  debug:
+    msg: "Provision completed successfully"
