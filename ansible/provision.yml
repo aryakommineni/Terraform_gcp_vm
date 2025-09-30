@@ -1,0 +1,62 @@
+---
+- name: Provision GCP VM via Terraform (local)
+  hosts: localhost
+  gather_facts: no
+
+  vars:
+    # These will be supplied by ManageIQ dialog → vars mapping
+    project_id: ""
+    region: ""
+    zone: ""
+    machine_type: ""
+    vm_name: ""
+    credentials_file: "/var/lib/manageiq/keys/gcp-sa.json"
+
+    # Path to the Terraform module directory (relative to this playbook)
+    tf_dir: "{{ playbook_dir }}/../terraform"
+
+  tasks:
+    - name: Show Terraform version (debug)
+      command: terraform -version
+      register: tfver
+      changed_when: false
+
+    - name: Ensure module directory exists
+      stat:
+        path: "{{ tf_dir }}"
+      register: tf_dir_stat
+    - name: Fail if terraform module folder is missing
+      fail:
+        msg: "Terraform module folder not found at {{ tf_dir }}. Check repo structure."
+      when: not tf_dir_stat.stat.exists
+
+    - name: Create tfvars file for this run
+      copy:
+        dest: "{{ tf_dir }}/terraform.tfvars.json"
+        mode: "0600"
+        content: |
+          {
+            "project_id": "{{ project_id }}",
+            "region": "{{ region }}",
+            "zone": "{{ zone }}",
+            "machine_type": "{{ machine_type }}",
+            "vm_name": "{{ vm_name }}",
+            "credentials_file": "{{ credentials_file }}"
+          }
+
+    - name: terraform init
+      command: terraform init -input=false
+      args: { chdir: "{{ tf_dir }}" }
+
+    - name: terraform apply
+      command: terraform apply -input=false -auto-approve
+      args: { chdir: "{{ tf_dir }}" }
+
+    - name: Capture outputs as JSON
+      command: terraform output -json
+      args: { chdir: "{{ tf_dir }}" }
+      register: tfout
+      changed_when: false
+
+    - name: Print outputs (visible in ManageIQ request log)
+      debug: var=tfout.stdout
