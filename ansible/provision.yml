@@ -1,33 +1,33 @@
 ---
 - name: Provision GCP VM with Terraform
   hosts: localhost
-  connection: local
   gather_facts: no
 
   vars:
-    tf_dir: "{{ playbook_dir }}/.."
+    vm_name: "{{ dialog_vm_name }}"
+    project_id: "{{ dialog_project_id }}"
+    region: "{{ dialog_region }}"
+    zone: "{{ dialog_zone }}"
+    machine_type: "{{ dialog_machine_type }}"
     credentials_file: "/var/lib/manageiq/keys/gcp-sa.json"
 
   tasks:
-    - name: Generate terraform.tfvars.json
-      copy:
-        dest: "{{ tf_dir }}/terraform.tfvars.json"
-        content: |
-          {
-            "project_id": "{{ dialog_project_id }}",
-            "region": "{{ dialog_region }}",
-            "zone": "{{ dialog_zone }}",
-            "machine_type": "{{ dialog_machine_type }}",
-            "vm_name": "{{ dialog_vm_name }}",
-            "credentials_file": "{{ credentials_file }}"
-          }
+    - name: Ensure working directory exists
+      file:
+        path: /tmp/tf-gcp
+        state: directory
 
-    - name: Run terraform init
+    - name: Copy Terraform configuration
+      copy:
+        src: main.tf
+        dest: /tmp/tf-gcp/main.tf
+
+    - name: Terraform init
       command: terraform init
       args:
-        chdir: "{{ tf_dir }}"
+        chdir: /tmp/tf-gcp
 
-    - name: Run terraform apply
-      command: terraform apply -auto-approve
+    - name: Terraform apply
+      command: terraform apply -auto-approve -var "project_id={{ project_id }}" -var "region={{ region }}" -var "zone={{ zone }}" -var "vm_name={{ vm_name }}" -var "machine_type={{ machine_type }}" -var "credentials_file={{ credentials_file }}"
       args:
-        chdir: "{{ tf_dir }}"
+        chdir: /tmp/tf-gcp
