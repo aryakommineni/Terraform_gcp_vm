@@ -17,10 +17,20 @@
         path: /tmp/tf-gcp
         state: directory
 
-    - name: Copy Terraform configuration
+    - name: Copy Terraform configuration (main.tf)
       copy:
-        src: main.tf
+        src: ../main.tf
         dest: /tmp/tf-gcp/main.tf
+
+    - name: Copy Terraform configuration (variables.tf)
+      copy:
+        src: ../variables.tf
+        dest: /tmp/tf-gcp/variables.tf
+
+    - name: Copy Terraform configuration (outputs.tf)
+      copy:
+        src: ../outputs.tf
+        dest: /tmp/tf-gcp/outputs.tf
 
     - name: Terraform init
       command: terraform init
