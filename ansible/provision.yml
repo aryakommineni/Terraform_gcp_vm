@@ -1,44 +1,37 @@
 ---
-- name: Provision GCP VM with Terraform
+- name: Provision GCP VM
   hosts: localhost
   connection: local
   gather_facts: no
 
+  vars:
+    project_id: "{{ project_id }}"
+    region: "{{ region }}"
+    zone: "{{ zone }}"
+    machine_type: "{{ machine_type }}"
+    vm_name: "{{ vm_name }}"
+    credentials_file: "{{ credentials_file }}"
+
   tasks:
-    - name: Ensure working directory exists
-      file:
-        path: /tmp/tf-gcp
-        state: directory
+    - name: Authenticate with GCP
+      command: >
+        gcloud auth activate-service-account
+        --key-file {{ credentials_file }}
 
-    - name: Copy Terraform configuration files
-      copy:
-        src: "{{ item }}"
-        dest: /tmp/tf-gcp/
-      with_items:
-        - ../main.tf
-        - ../variables.tf
-        - ../outputs.tf
-
-    - name: Initialize Terraform
-      command: terraform init
-      args:
-        chdir: /tmp/tf-gcp
-
-    - name: Apply Terraform plan
-      command: terraform apply -auto-approve
-      args:
-        chdir: /tmp/tf-gcp
-      environment:
-        GOOGLE_PROJECT: "{{ dialog_project_id }}"
-        GOOGLE_REGION: "{{ dialog_region }}"
-        GOOGLE_ZONE: "{{ dialog_zone }}"
-        TF_VAR_project_id: "{{ dialog_project_id }}"
-        TF_VAR_region: "{{ dialog_region }}"
-        TF_VAR_zone: "{{ dialog_zone }}"
-        TF_VAR_machine_type: "{{ dialog_machine_type }}"
-        TF_VAR_vm_name: "{{ dialog_vm_name }}"
-        TF_VAR_credentials_file: "{{ dialog_credentials_file }}"
+    - name: Create VM instance
+      command: >
+        gcloud compute instances create {{ vm_name }}
+        --project {{ project_id }}
+        --zone {{ zone }}
+        --machine-type {{ machine_type }}
+        --image-family debian-11
+        --image-project debian-cloud
 
     - name: Notify ManageIQ playbook finished
       debug:
         msg: "Provision completed successfully"
+
+    - name: Mark playbook as successful for ManageIQ
+      set_stats:
+        data:
+          miq_playbook_status: "ok"
