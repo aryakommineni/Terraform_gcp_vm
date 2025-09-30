@@ -1,0 +1,12 @@
+---
+- name: Retire GCP VM with Terraform
+  hosts: localhost
+  connection: local
+  gather_facts: no
+
+  tasks:
+    - name: Run terraform destroy
+      command: terraform destroy -auto-approve
+      args:
+        chdir: "{{ playbook_dir }}/.."
+
