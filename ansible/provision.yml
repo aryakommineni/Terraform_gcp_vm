@@ -6,32 +6,42 @@
 
   vars:
     project_id: "{{ project_id }}"
-    region: "{{ region }}"
     zone: "{{ zone }}"
+    region: "{{ region }}"
     machine_type: "{{ machine_type }}"
     vm_name: "{{ vm_name }}"
     credentials_file: "{{ credentials_file }}"
 
   tasks:
-    - name: Authenticate with GCP
-      command: >
-        gcloud auth activate-service-account
-        --key-file {{ credentials_file }}
+    - name: Notify ManageIQ - Provisioning Started
+      debug:
+        msg: "Provisioning VM {{ vm_name }} in project {{ project_id }}"
 
-    - name: Create VM instance
+    - name: Create VM Instance
       command: >
         gcloud compute instances create {{ vm_name }}
-        --project {{ project_id }}
-        --zone {{ zone }}
-        --machine-type {{ machine_type }}
-        --image-family debian-11
-        --image-project debian-cloud
+        --project={{ project_id }}
+        --zone={{ zone }}
+        --machine-type={{ machine_type }}
+        --image-family=debian-11
+        --image-project=debian-cloud
+        --boot-disk-size=10GB
+        --quiet
+      register: create_vm_result
+      environment:
+        GOOGLE_APPLICATION_CREDENTIALS: "{{ credentials_file }}"
 
-    - name: Notify ManageIQ playbook finished
+    - name: Debug GCP VM creation result
       debug:
-        msg: "Provision completed successfully"
+        var: create_vm_result
+
+  post_tasks:
+    - name: Notify ManageIQ - Provision Completed
+      debug:
+        msg: "Provisioning completed for VM {{ vm_name }}"
 
     - name: Mark playbook as successful for ManageIQ
       set_stats:
         data:
           miq_playbook_status: "ok"
+
