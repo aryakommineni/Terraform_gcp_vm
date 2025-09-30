@@ -1,15 +1,8 @@
 ---
 - name: Provision GCP VM with Terraform
   hosts: localhost
+  connection: local
   gather_facts: no
-
-  vars:
-    vm_name: "{{ dialog_vm_name }}"
-    project_id: "{{ dialog_project_id }}"
-    region: "{{ dialog_region }}"
-    zone: "{{ dialog_zone }}"
-    machine_type: "{{ dialog_machine_type }}"
-    credentials_file: "/var/lib/manageiq/keys/gcp-sa.json"
 
   tasks:
     - name: Ensure working directory exists
@@ -17,27 +10,31 @@
         path: /tmp/tf-gcp
         state: directory
 
-    - name: Copy Terraform configuration (main.tf)
+    - name: Copy Terraform configuration files
       copy:
-        src: ../main.tf
-        dest: /tmp/tf-gcp/main.tf
+        src: "{{ item }}"
+        dest: /tmp/tf-gcp/
+      with_items:
+        - ../main.tf
+        - ../variables.tf
+        - ../outputs.tf
 
-    - name: Copy Terraform configuration (variables.tf)
-      copy:
-        src: ../variables.tf
-        dest: /tmp/tf-gcp/variables.tf
-
-    - name: Copy Terraform configuration (outputs.tf)
-      copy:
-        src: ../outputs.tf
-        dest: /tmp/tf-gcp/outputs.tf
-
-    - name: Terraform init
+    - name: Initialize Terraform
       command: terraform init
       args:
         chdir: /tmp/tf-gcp
 
-    - name: Terraform apply
-      command: terraform apply -auto-approve -var "project_id={{ project_id }}" -var "region={{ region }}" -var "zone={{ zone }}" -var "vm_name={{ vm_name }}" -var "machine_type={{ machine_type }}" -var "credentials_file={{ credentials_file }}"
+    - name: Apply Terraform plan
+      command: terraform apply -auto-approve
       args:
         chdir: /tmp/tf-gcp
+      environment:
+        GOOGLE_PROJECT: "{{ dialog_project_id }}"
+        GOOGLE_REGION: "{{ dialog_region }}"
+        GOOGLE_ZONE: "{{ dialog_zone }}"
+        TF_VAR_project_id: "{{ dialog_project_id }}"
+        TF_VAR_region: "{{ dialog_region }}"
+        TF_VAR_zone: "{{ dialog_zone }}"
+        TF_VAR_machine_type: "{{ dialog_machine_type }}"
+        TF_VAR_vm_name: "{{ dialog_vm_name }}"
+        TF_VAR_credentials_file: "{{ dialog_credentials_file }}"
