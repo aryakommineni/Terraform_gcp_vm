@@ -1,47 +1,40 @@
 ---
-- name: Provision GCP VM
+- name: Provision GCP VM from ManageIQ
   hosts: localhost
   connection: local
   gather_facts: no
+  collections:
+    - google.cloud
 
   vars:
-    project_id: "{{ project_id }}"
-    zone: "{{ zone }}"
-    region: "{{ region }}"
-    machine_type: "{{ machine_type }}"
-    vm_name: "{{ vm_name }}"
-    credentials_file: "{{ credentials_file }}"
+    project_id: "{{ dialog_project_id | default('optical-caldron-472316-u5') }}"
+    zone: "{{ dialog_zone | default('us-west2-a') }}"
+    region: "{{ dialog_region | default('us-west2') }}"
+    machine_type: "{{ dialog_machine_type | default('e2-standard-2') }}"
+    vm_name: "{{ dialog_vm_name | default('miq-test-vm') }}"
+    credentials_file: "{{ dialog_credentials_file | default('/root/gcp-key.json') }}"
+    service_account_email: "{{ dialog_service_account_email | default('manageiq-gcp@optical-caldron-472316-u5.iam.gserviceaccount.com') }}"
 
   tasks:
-    - name: Notify ManageIQ - Provisioning Started
-      debug:
-        msg: "Provisioning VM {{ vm_name }} in project {{ project_id }}"
-
-    - name: Create VM Instance
-      command: >
-        gcloud compute instances create {{ vm_name }}
-        --project={{ project_id }}
-        --zone={{ zone }}
-        --machine-type={{ machine_type }}
-        --image-family=debian-11
-        --image-project=debian-cloud
-        --boot-disk-size=10GB
-        --quiet
-      register: create_vm_result
-      environment:
-        GOOGLE_APPLICATION_CREDENTIALS: "{{ credentials_file }}"
-
-    - name: Debug GCP VM creation result
-      debug:
-        var: create_vm_result
-
-  post_tasks:
-    - name: Notify ManageIQ - Provision Completed
-      debug:
-        msg: "Provisioning completed for VM {{ vm_name }}"
-
-    - name: Mark playbook as successful for ManageIQ
-      set_stats:
-        data:
-          miq_playbook_status: "ok"
-
+    - name: Create GCP VM
+      google.cloud.gcp_compute_instance:
+        name: "{{ vm_name }}"
+        machine_type: "{{ machine_type }}"
+        zone: "{{ zone }}"
+        project: "{{ project_id }}"
+        disks:
+          - auto_delete: true
+            boot: true
+            initialize_params:
+              source_image: "projects/debian-cloud/global/images/family/debian-11"
+        network_interfaces:
+          - network: default
+            access_configs:
+              - name: External NAT
+                type: ONE_TO_ONE_NAT
+        service_accounts:
+          - email: "{{ service_account_email }}"
+            scopes:
+              - https://www.googleapis.com/auth/cloud-platform
+      auth_kind: serviceaccount
+      service_account_file: "{{ credentials_file }}"
