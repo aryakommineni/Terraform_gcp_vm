@@ -38,3 +38,4 @@
               - https://www.googleapis.com/auth/cloud-platform
       auth_kind: serviceaccount
       service_account_file: "{{ credentials_file }}"
+
