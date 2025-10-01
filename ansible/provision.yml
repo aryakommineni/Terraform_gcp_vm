@@ -1,41 +1,22 @@
----
-- name: Provision GCP VM from ManageIQ
-  hosts: localhost
-  connection: local
-  gather_facts: no
-  collections:
-    - google.cloud
-
-  vars:
-    project_id: "{{ dialog_project_id | default('optical-caldron-472316-u5') }}"
-    zone: "{{ dialog_zone | default('us-west2-a') }}"
-    region: "{{ dialog_region | default('us-west2') }}"
-    machine_type: "{{ dialog_machine_type | default('e2-standard-2') }}"
-    vm_name: "{{ dialog_vm_name | default('miq-test-vm') }}"
-    credentials_file: "{{ dialog_credentials_file | default('/root/gcp-key.json') }}"
-    service_account_email: "{{ dialog_service_account_email | default('manageiq-gcp@optical-caldron-472316-u5.iam.gserviceaccount.com') }}"
-
-  tasks:
-    - name: Create GCP VM
-      google.cloud.gcp_compute_instance:
-        name: "{{ vm_name }}"
-        machine_type: "{{ machine_type }}"
-        zone: "{{ zone }}"
-        project: "{{ project_id }}"
-        disks:
-          - auto_delete: true
-            boot: true
-            initialize_params:
-              source_image: "projects/debian-cloud/global/images/family/debian-11"
-        network_interfaces:
-          - network: default
-            access_configs:
-              - name: External NAT
-                type: ONE_TO_ONE_NAT
-        service_accounts:
-          - email: "{{ service_account_email }}"
-            scopes:
-              - https://www.googleapis.com/auth/cloud-platform
-      auth_kind: serviceaccount
-      service_account_file: "{{ credentials_file }}"
-
+- name: Create GCP VM
+  google.cloud.gcp_compute_instance:
+    name: "{{ vm_name }}"
+    machine_type: "{{ machine_type }}"
+    zone: "{{ zone }}"
+    project: "{{ project_id }}"
+    disks:
+      - auto_delete: true
+        boot: true
+        initialize_params:
+          source_image: "projects/debian-cloud/global/images/family/debian-11"
+    network_interfaces:
+      - network: default
+        access_configs:
+          - name: External NAT
+            type: ONE_TO_ONE_NAT
+    service_accounts:
+      - email: "{{ service_account_email }}"
+        scopes:
+          - https://www.googleapis.com/auth/cloud-platform
+  auth_kind: serviceaccount
+  service_account_file: "/var/lib/awx/credentials/gcp.json"
