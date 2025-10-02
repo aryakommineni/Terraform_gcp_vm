@@ -12,8 +12,9 @@
     region: "{{ dialog_region | default('us-west2') }}"
     machine_type: "{{ dialog_machine_type | default('e2-standard-2') }}"
     vm_name: "{{ dialog_vm_name | default('miq-test-vm') }}"
-    credentials_file: "{{ dialog_credentials_file | default('/root/gcp-key.json') }}"
-    service_account_email: "{{ dialog_service_account_email | default('manageiq-gcp@optical-caldron-472316-u5.iam.gserviceaccount.com') }}"
+    # fixed to the credential file we tested
+    credentials_file: "/var/lib/awx/credentials/gcp.json"
+    service_account_email: "manageiq-gcp@optical-caldron-472316-u5.iam.gserviceaccount.com"
 
   tasks:
     - name: Create GCP VM
