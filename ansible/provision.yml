@@ -1,40 +1,49 @@
 ---
-- name: Provision GCP VM from ManageIQ
+- name: Provision GCP VM via Terraform Cloud
   hosts: localhost
   connection: local
   gather_facts: no
-  collections:
-    - google.cloud
 
   vars:
-    project_id: "{{ dialog_project_id | default('optical-caldron-472316-u5') }}"
-    zone: "{{ dialog_zone | default('us-west2-a') }}"
-    region: "{{ dialog_region | default('us-west2') }}"
-    machine_type: "{{ dialog_machine_type | default('e2-standard-2') }}"
-    vm_name: "{{ dialog_vm_name | default('miq-test-vm') }}"
+    # Workspace ID from Terraform Cloud
+    tfc_workspace_id: "ws-AoELqx1SzRs6ZUn7"
+
+    # Token file we already created on the VM
+    tfc_token_file: "/var/lib/awx/credentials/tfc_token.txt"
 
   tasks:
-    - name: Create GCP VM
-      google.cloud.gcp_compute_instance:
-        name: "{{ vm_name }}"
-        machine_type: "{{ machine_type }}"
-        zone: "{{ zone }}"
-        project: "{{ project_id }}"
-        auth_kind: serviceaccount
-        # Tower will inject this automatically from the GCP-ServiceAccount credential
-        service_account_email: "{{ lookup('env', 'GCP_SERVICE_ACCOUNT_EMAIL') }}"
-        service_account_file: "{{ lookup('env', 'GCP_SERVICE_ACCOUNT_FILE') }}"
-        disks:
-          - auto_delete: true
-            boot: true
-            initialize_params:
-              source_image: "projects/debian-cloud/global/images/family/debian-11"
-        network_interfaces:
-          - network: default
-            access_configs:
-              - name: External NAT
-                type: ONE_TO_ONE_NAT
-        service_accounts:
-          - email: "{{ lookup('env', 'GCP_SERVICE_ACCOUNT_EMAIL') }}"
-            scopes:
-              - https://www.googleapis.com/auth/cloud-platform
+    - name: Read Terraform Cloud token
+      slurp:
+        src: "{{ tfc_token_file }}"
+      register: tfc_token_raw
+
+    - name: Decode token
+      set_fact:
+        tfc_token: "{{ tfc_token_raw.content | b64decode }}"
+
+    - name: Trigger Terraform Run in HCP
+      uri:
+        url: "https://app.terraform.io/api/v2/runs"
+        method: POST
+        headers:
+          Authorization: "Bearer {{ tfc_token }}"
+          Content-Type: "application/vnd.api+json"
+        body_format: json
+        body:
+          data:
+            attributes:
+              is_destroy: false
+              message: "Run triggered from ManageIQ provision.yml"
+            type: runs
+            relationships:
+              workspace:
+                data:
+                  type: workspaces
+                  id: "{{ tfc_workspace_id }}"
+        status_code: 201
+      register: run_response
+
+    - name: Save Run ID for ManageIQ check_completed
+      set_stats:
+        data:
+          miq_terraform_run_id: "{{ run_response.json.data.id }}"
