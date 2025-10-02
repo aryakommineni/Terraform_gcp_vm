@@ -12,9 +12,6 @@
     region: "{{ dialog_region | default('us-west2') }}"
     machine_type: "{{ dialog_machine_type | default('e2-standard-2') }}"
     vm_name: "{{ dialog_vm_name | default('miq-test-vm') }}"
-    # fixed to the credential file we tested
-    credentials_file: "/var/lib/awx/credentials/gcp.json"
-    service_account_email: "manageiq-gcp@optical-caldron-472316-u5.iam.gserviceaccount.com"
 
   tasks:
     - name: Create GCP VM
@@ -24,7 +21,9 @@
         zone: "{{ zone }}"
         project: "{{ project_id }}"
         auth_kind: serviceaccount
-        service_account_file: "{{ credentials_file }}"
+        # Tower will inject this automatically from the GCP-ServiceAccount credential
+        service_account_email: "{{ lookup('env', 'GCP_SERVICE_ACCOUNT_EMAIL') }}"
+        service_account_file: "{{ lookup('env', 'GCP_SERVICE_ACCOUNT_FILE') }}"
         disks:
           - auto_delete: true
             boot: true
@@ -36,6 +35,6 @@
               - name: External NAT
                 type: ONE_TO_ONE_NAT
         service_accounts:
-          - email: "{{ service_account_email }}"
+          - email: "{{ lookup('env', 'GCP_SERVICE_ACCOUNT_EMAIL') }}"
             scopes:
               - https://www.googleapis.com/auth/cloud-platform
