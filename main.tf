@@ -1,36 +1,33 @@
 terraform {
-  required_providers {
-    google = {
-      source  = "hashicorp/google"
-      version = "~> 4.0"
-    }
-  }
+  required_providers { google = { source = "hashicorp/google", version = "~> 5.0" } }
 }
 
-provider "google" {
-  credentials = file(var.credentials_file)
-  project     = var.project_id
-  region      = var.region
-  zone        = var.zone
-}
-
-resource "google_compute_instance" "vm_instance" {
-  name         = var.vm_name
+resource "google_compute_instance" "vm" {
+  name         = var.instance_name
   machine_type = var.machine_type
   zone         = var.zone
+  labels       = var.labels
+  tags         = var.tags
 
   boot_disk {
     initialize_params {
-      image = "debian-cloud/debian-11"
+      image = var.image
+      size  = var.boot_disk_gb
+      type  = "pd-balanced"
     }
   }
 
   network_interface {
-    network       = "default"
+    network    = var.network
+    subnetwork = var.subnetwork
+    # ephemeral public IP (omit for private-only)
     access_config {}
   }
-}
 
-output "instance_name" {
-  value = google_compute_instance.vm_instance.name
+  service_account {
+    email  = var.instance_sa_email
+    scopes = ["https://www.googleapis.com/auth/cloud-platform"]
+  }
+
+  metadata = var.metadata
 }
